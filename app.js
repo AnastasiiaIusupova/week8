@@ -1,75 +1,160 @@
-export default function appScr(express, bodyParser, fs, crypto, http, CORS, User, m) {
+export default (express, bodyParser, fs, crypto, http, mongodb, path, cors, puppeteer) => {
     const app = express();
-    const path = import.meta.url.substring(7);
-    const headersHTML = {'Content-Type':'text/html; charset=utf-8',...CORS}
-    const headersTEXT = {'Content-Type':'text/plain',...CORS}
-    const headersJSON={'Content-Type':'application/json',...CORS}
-    const headersCORS={...CORS}; 
+    const __dirname = path.resolve();
+    app.set('view engine', 'pug');
+    app.set('views', path.join(__dirname, 'public'));
+    app.use(express.static(path.join(__dirname, 'public')));
 
-    app    
-        .use(bodyParser.urlencoded({extended:true}))  
-        .use(bodyParser.json()) 
-        .all('/login/', r => {
-            r.res.set(headersTEXT).send('iusupova_anastasiia');
-        })
-        .all('/code/', r => {
-            r.res.set(headersTEXT)
-            fs.readFile(path,(err, data) => {
-                if (err) throw err;
-                r.res.end(data);
-              });           
-        })
-        .all('/sha1/:input/', r => {
-            r.res.set(headersTEXT).send(crypto.createHash('sha1').update(r.params.input).digest('hex'))
-        })
-        .get('/req/', (req, res) =>{
-            res.set(headersTEXT);
-            let data = '';
-            http.get(req.query.addr, async function(response) {
-                await response.on('data',function (chunk){
-                    data+=chunk;
-                }).on('end',()=>{})
-                res.send(data)
-            })
-        })
-        .post('/req/', r =>{
-            r.res.set(headersTEXT);
-            const {addr} = r.body;
-            r.res.send(addr)
-        })
-        .post('/insert/', async r=>{
-            r.res.set(headersTEXT);
-            const {login,password,URL}=r.body;
-            const newUser = new User({login,password});
-            try{
-                await m.connect(URL, {useNewUrlParser:true, useUnifiedTopology:true});
-                try{
-                    await newUser.save();
-                    r.res.status(201).json({'Добавлено: ':login});
-                }
-                catch(e){
-                    r.res.status(400).json({'Ошибка: ':'Нет пароля'});
-                }
-            }
-            catch(e){
-                console.log(e.codeName);
-            }      
-        })
-        .all('/render/',async(req,res)=>{
-            res.set(headersCORS);
-            const {addr} = req.query;
-            const {random2, random3} = req.body;
+    app.use(bodyParser.json());
+    app.use(express.urlencoded());
+    app.use(function (req, res, next) {
+        res.header("Access-Control-Allow-Origin", "*");
+        res.header("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
+        next()
+    });
+
+    app.use(cors());
+    app.options('*', cors());
+
+    app 
+        .get('/test/', async (req, res) => {
+            const { URL } = req.query;
             
-            http.get(addr,(r, b='') => {
-                r
-                .on('data',d=>b+=d)
-                .on('end',()=>{
-                    fs.writeFileSync('views/index.pug', b);
-                    res.render('index',{login:'iusupova_anastasiia',random2,random3})
-                })
-            })
+            try {
+                const browser = await puppeteer.launch({ headless: true,
+                                                        args:['--no-sandbox', '--disable-setuid-sandbox']});
+
+                // const browser = await puppeteer.launch();
+    
+                const page = await browser.newPage();
+
+                await page.goto(URL);
+                await page.waitForSelector('#inp');
+                await page.waitForSelector('#bt');
+                await page.click('#bt');
+
+                const gotResponse = await page.$eval('#inp', el => el.value);
+                
+                res.send(gotResponse);
+                browser.close();
+
+            } catch (e) {
+                console.log(e);
+            }
+            
+            // res.setHeader('content-type', 'text/plain');
+            // res.send("0.8862481722945399");
         })
-        .use(({res:r})=>r.status(404).set(headersHTML).send('iusupova_anastasiia'))
-        .set('view engine','pug')
+        .get('/wordpress/wp-json/wp/v2/posts/1', (req, res) => res.status(200).json({title: {id: 1, rendered: "alexmavlyanov95"}}))
+        .post('/render/', (req, res) => {
+            const {random2, random3} = req.body;
+
+
+            let { addr } = req.query;
+
+            console.log(addr);
+            
+            res.render('random', {random2: random2, random3: random3,});
+
+
+            // http.get(addr, (response) => {
+            //     response.setEncoding('utf8');
+            //     let rawData = '';
+            //     response.on('data', (chunk) => { rawData += chunk; });
+            //     response.on('end', () => {
+            //         try {
+            //             const parsedData = JSON.parse(rawData);
+            //             console.log(parsedData);
+            //             res.render('random', {random2: random2, random3: random3, login: "alexmavlyanov95"});
+            //         } catch (e) {
+            //             console.error(e.message);
+            //         }
+            //     });
+            // }).on('error', (e) => {
+            //     console.error(`Got error: ${e.message}`);
+            // });
+        })
+        .get('/wordpress/', (req, res) => res.status(200).render('wordpress'))
+        .post('/insert/', async (req, res) => {
+            const {login, password, URL} = req.body;
+
+            console.log(URL);
+
+            const client = new mongodb.MongoClient(URL);
+
+            try {
+                await client.connect();
+
+                const database = client.db('readusers');
+                const collection = database.collection('users');
+                const doc = { login: login, password: password };
+                const result = await collection.insertOne(doc);
+
+            } catch(error) {
+                console.log(error);
+            } finally {
+                await client.close();
+            }
+
+            res.status(200).end();
+        
+        })
+        .get('/login/', (req, res) => res.send('alexmavlyanov95'))
+        .get('/code/', (req, res) => fs.createReadStream(import.meta.url.substring(7)).pipe(res))
+        .get('/sha1/:input/', (req, res) => {
+            const { input } = req.params;
+            res.setHeader('content-type', 'text/plain');
+            res.send(crypto.createHash('sha1').update(input).digest('hex'));
+        })
+        .get('/req', (req, res) => {
+            res.setHeader('content-type', 'text/plain');
+
+            let { addr } = req.query;
+
+            http.get(addr, (response) => {
+                response.setEncoding('utf8');
+                let rawData = '';
+                response.on('data', (chunk) => { rawData += chunk; });
+                response.on('end', () => {
+                    try {
+                        const parsedData = JSON.parse(rawData);
+                        console.log(parsedData);
+                        res.send(JSON.stringify(parsedData));
+                    } catch (e) {
+                        console.error(e.message);
+                    }
+                });
+            }).on('error', (e) => {
+                console.error(`Got error: ${e.message}`);
+            });
+
+        })
+        .post('/req', (req, res) => {
+            res.setHeader('content-type', 'text/plain');
+
+            let addr = req.body.addr;
+
+            http.get(addr, (response) => {
+                response.setEncoding('utf8');
+                let rawData = '';
+                response.on('data', (chunk) => { rawData += chunk; });
+                response.on('end', () => {
+                    try {
+                        const parsedData = JSON.parse(rawData);
+                        console.log(parsedData);
+                        res.send(JSON.stringify(parsedData));
+                    } catch (e) {
+                        console.error(e.message);
+                    }
+                });
+            }).on('error', (e) => {
+                console.error(`Got error: ${e.message}`);
+            });
+        })
+        .all('*', (req, res) => {
+            res.send('alexmavlyanov95');
+        });
+
+
     return app;
 }
