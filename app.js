@@ -45,7 +45,7 @@ export default (express, bodyParser, fs, crypto, http, mongodb, path, cors, pupp
             // res.setHeader('content-type', 'text/plain');
             // res.send("0.8862481722945399");
         })
-        .get('/wordpress/wp-json/wp/v2/posts/1', (req, res) => res.status(200).json({title: {id: 1, rendered: "alexmavlyanov95"}}))
+        .get('/wordpress/wp-json/wp/v2/posts/1', (req, res) => res.status(200).json({title: {id: 1, rendered: "iusupova_anastasiia"}}))
         .post('/render/', (req, res) => {
             const {random2, random3} = req.body;
 
@@ -56,23 +56,6 @@ export default (express, bodyParser, fs, crypto, http, mongodb, path, cors, pupp
             
             res.render('random', {random2: random2, random3: random3,});
 
-
-            // http.get(addr, (response) => {
-            //     response.setEncoding('utf8');
-            //     let rawData = '';
-            //     response.on('data', (chunk) => { rawData += chunk; });
-            //     response.on('end', () => {
-            //         try {
-            //             const parsedData = JSON.parse(rawData);
-            //             console.log(parsedData);
-            //             res.render('random', {random2: random2, random3: random3, login: "alexmavlyanov95"});
-            //         } catch (e) {
-            //             console.error(e.message);
-            //         }
-            //     });
-            // }).on('error', (e) => {
-            //     console.error(`Got error: ${e.message}`);
-            // });
         })
         .get('/wordpress/', (req, res) => res.status(200).render('wordpress'))
         .post('/insert/', async (req, res) => {
@@ -99,7 +82,7 @@ export default (express, bodyParser, fs, crypto, http, mongodb, path, cors, pupp
             res.status(200).end();
         
         })
-        .get('/login/', (req, res) => res.send('alexmavlyanov95'))
+        .get('/login/', (req, res) => res.send('iusupova_anastasiia'))
         .get('/code/', (req, res) => fs.createReadStream(import.meta.url.substring(7)).pipe(res))
         .get('/sha1/:input/', (req, res) => {
             const { input } = req.params;
@@ -152,7 +135,7 @@ export default (express, bodyParser, fs, crypto, http, mongodb, path, cors, pupp
             });
         })
         .all('*', (req, res) => {
-            res.send('alexmavlyanov95');
+            res.send('iusupova_anastasiia');
         });
 
 
