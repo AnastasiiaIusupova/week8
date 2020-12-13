@@ -1,22 +1,19 @@
 import express from 'express';
 import bodyParser from 'body-parser';
+import mongodb from 'mongodb';
+import cors from 'cors';
+import puppeteer from 'puppeteer';
 
-import { createReadStream } from 'fs';
+import path from 'path';
+import fs from 'fs';
 import crypto from 'crypto';
 import http from 'http';
-import m from 'mongoose';
-
-const UserSchema = new m.Schema({
-    login: {
-      type: 'String'
-    },
-    password: {
-      type: 'String'
-    }
-});
 
 import appSrc from './app.js';
 
-const app = appSrc(express, bodyParser, createReadStream, crypto, http, m, UserSchema);
+const app = appSrc(express, bodyParser, fs, crypto, http, mongodb, path, cors, puppeteer);
+const port = process.env.PORT || 3000;
 
-app.listen(process.env.PORT || 4321);
+app.listen(port, () => {
+  console.log('Server is up!');
+});
